@@ -23,28 +23,47 @@ const setAttribute = (dom, attr, value) => {
   }
 }
 
+// 创建组件
+const createComponent = (vdom, props) => {
+  let component
+  // 类定义的组件，直接返回实例
+  if (vdom.tag.prototype && vdom.tag.prototype.render) {
+    component = new vdom.tag(props)
+  } else {
+    // 函数定义的组件，添加 render 方法，为了获取函数中 jsx 转化的虚拟 dom
+    component.render = function () {
+      return vdom.tag(props)
+    }
+  }
+}
+
 export const _render = (vdom, root) => {
-  const vdomNode = vdom.render ? vdom.render() : vdom
-  if (typeof vdomNode === "string" || typeof vdomNode === "number") {
-    root.innerText += vdomNode
+  // const vdomNode = vdom.render ? vdom.render() : vdom
+  if (typeof vdom === "string" || typeof vdom === "number") {
+    root.innerText += vdom
     return
   }
-  const dom = document.createElement(vdomNode.tag)
-  if (vdomNode.attrs) {
-    for (let attr in vdomNode.attrs) {
-      const value = vdomNode.attrs[attr]
+  if (typeof vdom.tag === 'function') {
+    const component = createComponent(vdom, vdom.attrs);
+    setComponentProps(component, vdom.attrs);
+    return component.base;
+  }
+  const dom = document.createElement(vdom.tag)
+  if (vdom.attrs) {
+    for (let attr in vdom.attrs) {
+      const value = vdom.attrs[attr]
       setAttribute(dom, attr, value)
     }
   }
   // 遍历子节点, 
-  vdomNode.childs && vdomNode.childs.forEach(child => render(child, dom))
+  vdom.childs && vdom.childs.forEach(child => render(child, dom))
   // 将父节点 root 挂到 vdom 上，当再次渲染组件时，会用到 vdom.root
-  if (vdom.root) {
-    vdom.root.innerText = ''
-    vdom.root.appendChild(dom)
-    return
-  }
-  vdom.root = root
+  // if (vdom.root) {
+  //   vdom.root.innerText = ''
+  //   vdom.root.appendChild(dom)
+  //   return
+  // }
+  // vdom.root = root
   // 将子元素挂载到其真实 DOM 的父元素上
   root.appendChild(dom)
 }
