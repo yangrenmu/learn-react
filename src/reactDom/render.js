@@ -35,10 +35,38 @@ const createComponent = (vdom, props) => {
       return vdom.tag(props)
     }
   }
+  return component
 }
 
-export const _render = (vdom, root) => {
-  // const vdomNode = vdom.render ? vdom.render() : vdom
+const renderComponent = (component) => {
+  let base
+  const rendered = component.render()
+  if (component.base && component.componentWillUpdate) {
+    component.componentWillUpdate()
+  }
+  base = _render(rendered)
+  if (component.base && component.componentDidUpdate) {
+    component.componentDidUpdate()
+  } else if (component && component.componentDidMount) {
+    component.componentDidMount()
+  }
+  if (component.base && component.base.parentNode) {
+    component.base.parentNode.replaceChild(base, component.base)
+  }
+  component.base = base
+}
+
+const setComponentProps = (component, props) => {
+  if (component && component.componentWillMount) {
+    component.componentWillMount()
+  } else if (component.base && component.componentWillReceiveProps) {
+    component.componentWillReceiveProps(props)
+  }
+  component.props = props
+  renderComponent(component)
+}
+
+export const render = (vdom, root) => {
   if (typeof vdom === "string" || typeof vdom === "number") {
     root.innerText += vdom
     return
@@ -57,30 +85,5 @@ export const _render = (vdom, root) => {
   }
   // 遍历子节点, 
   vdom.childs && vdom.childs.forEach(child => render(child, dom))
-  // 将父节点 root 挂到 vdom 上，当再次渲染组件时，会用到 vdom.root
-  // if (vdom.root) {
-  //   vdom.root.innerText = ''
-  //   vdom.root.appendChild(dom)
-  //   return
-  // }
-  // vdom.root = root
-  // 将子元素挂载到其真实 DOM 的父元素上
   root.appendChild(dom)
-}
-
-export const render = (vdom, root) => {
-  if (typeof vdom.tag === 'function') {
-    let component
-    if (vdom.tag.prototype.render) {
-      // 类定义的组件
-      component = new vdom.tag(vdom.attrs)
-    } else {
-      // 函数定义组件
-      component = vdom.tag(vdom.attrs)
-    }
-
-    _render(component, root)
-    return
-  }
-  _render(vdom, root)
 }
