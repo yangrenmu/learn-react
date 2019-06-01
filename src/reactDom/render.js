@@ -31,6 +31,7 @@ const createComponent = (vdom, props) => {
     component = new vdom.tag(props)
   } else {
     // 函数定义的组件，添加 render 方法，为了获取函数中 jsx 转化的虚拟 dom
+    component = new vdom.tag(props)
     component.render = function () {
       return vdom.tag(props)
     }
@@ -38,13 +39,18 @@ const createComponent = (vdom, props) => {
   return component
 }
 
-const renderComponent = (component) => {
-  let base
-  const rendered = component.render()
+export const renderComponent = (component) => {
+  if (component.base && component.shouldComponentUpdate) {
+    const bool = component.shouldComponentUpdate(component.props, component.state)
+    if (!bool && bool !== undefined) {
+      return false
+    }
+  }
   if (component.base && component.componentWillUpdate) {
     component.componentWillUpdate()
   }
-  base = _render(rendered)
+  const rendered = component.render()
+  const base = _render(rendered)
   if (component.base && component.componentDidUpdate) {
     component.componentDidUpdate()
   } else if (component && component.componentDidMount) {
@@ -57,7 +63,7 @@ const renderComponent = (component) => {
 }
 
 const setComponentProps = (component, props) => {
-  if (component && component.componentWillMount) {
+  if (!component.base && component.componentWillMount) {
     component.componentWillMount()
   } else if (component.base && component.componentWillReceiveProps) {
     component.componentWillReceiveProps(props)
@@ -66,15 +72,15 @@ const setComponentProps = (component, props) => {
   renderComponent(component)
 }
 
-export const render = (vdom, root) => {
+export const _render = (vdom) => {
   if (typeof vdom === "string" || typeof vdom === "number") {
-    root.innerText += vdom
-    return
+    const textNode = document.createTextNode(vdom)
+    return textNode
   }
   if (typeof vdom.tag === 'function') {
-    const component = createComponent(vdom, vdom.attrs);
-    setComponentProps(component, vdom.attrs);
-    return component.base;
+    const component = createComponent(vdom, vdom.attrs)
+    setComponentProps(component, vdom.attrs)
+    return component.base
   }
   const dom = document.createElement(vdom.tag)
   if (vdom.attrs) {
@@ -85,5 +91,9 @@ export const render = (vdom, root) => {
   }
   // 遍历子节点, 
   vdom.childs && vdom.childs.forEach(child => render(child, dom))
-  root.appendChild(dom)
+  return dom
+}
+
+export const render = (vdom, container) => {
+  return container.appendChild(_render(vdom))
 }
